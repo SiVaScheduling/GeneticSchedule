@@ -136,7 +136,7 @@ def mate(left, right):
         
     if len(left) != len(right):
         last = left[-1:] if len(left) > len(right) else right[-1:]
-        if last[0] in ONE_BLOCK_MAX or 0.5 > random.random():
+        if last[0] != INVALID and (last[0] in ONE_BLOCK_MAX or 0.5 > random.random()):
             result += last
             
     return result
@@ -157,7 +157,7 @@ def main():
         print "gen", i
         pop = evolve(pop)
     print "\n\nresults\n"
-    for item in pop[:10]:
+    for item in [x[1] for x in sorted([(fitness(x), x) for x in pop])][:10]:
         print fitness(item), item
         
 main()
