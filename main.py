@@ -1,18 +1,27 @@
 import random
 
+INVALID = "X"
+
+# Parameters for schedule generation
 TYPES = (
     ["C", "C", "C", "C", "C", "B", "L", "S"],
     ["C", "C", "C", "C", "B", "L", "S"],
     ["C", "C", "C", "C", "C", "B", "L"],
     ["C", "C", "C", "C", "B", "L"],
 )
-TOTAL_MINI_BLOCKS = 78
+TOTAL_MINI_BLOCKS = 78 # from 8:30 am to 3:00 pm
 MIN_CLASS_LENGTH = 6
 NUM_CLASS_LENGTHS = 2
 
 MIN_LUNCH_LENGTH = 5
-MIN_STUDENT_LIFE_LENGTH = 3
-MIN_BREAK_LENGTH = 2
+MIN_STUDENT_LIFE_LENGTH = 3 # 15 mins
+MIN_BREAK_LENGTH = 2 # 10 mins
+
+ONE_BLOCK_MAX = ("B", "L", "S")
+
+# Parameters for fitness calculation
+IDEAL_LUNCH_TIME = 45 # 12:15 pm
+IDEAL_BREAK_TIME = 18 # 10:00 am
 
 def individual():
     shuffled_blocks = TYPES[random.randint(0, len(TYPES) - 1)]
@@ -56,14 +65,99 @@ def individual():
         schedule[i] = (block, length)
         
     return schedule
+
+# lower is better, apparently
+def fitness(schedule):
+    fitness = 0
+    fitness += abs(IDEAL_LUNCH_TIME - s_index_of(schedule, "L"))
+    fitness += abs(IDEAL_BREAK_TIME - s_index_of(schedule, "B"))
+    return fitness
+    
+def s_index_of(schedule, name):
+    index = 0
+    for block in schedule:
+        if block[0] == name:
+            return index
+        try:
+            index += block[1]
+        except:
+            print schedule
+            print block
+            raise Exception
+    return -1
+        
+        
+def population(count):
+    return [individual() for x in range(0, count)]
+        
+        
+def evolve(population, pct_retain=0.2, prob_random_select=0.05, prob_mutate=0.01):
+    graded = [(fitness(x), x) for x in population]
+    graded = [x[1] for x in sorted(graded)]
+    
+    parents = graded[:int(len(graded)*pct_retain)]
+    
+    for item in population:
+        if prob_random_select > random.random():
+            parents.append(item)
+            
+    for i in range(0, len(parents)):
+        if prob_mutate > random.random():
+            parents[i] = mate(parents[i], individual())
+            
+    children = []
+    for x in range(0, len(population) - len(parents)):
+        parent_left = parents[random.randint(0, len(parents) - 1)]
+        parent_right = parents[random.randint(0, len(parents) - 1)]
+        children.append(mate(parent_left, parent_right))
+        
+    result = parents + children
+    return result
+
+
+def mate(left, right):
+    for name in ONE_BLOCK_MAX:
+        if 0.5 > random.random():
+            left = s_remove(left, name)
+        else:
+            right = s_remove(right, name)
+    
+    result = []
+    for i in range(0, min(len(left), len(right))):
+        if left[i][0] in ONE_BLOCK_MAX or right[i][0] == INVALID:
+            next_item = left[i]
+        elif right[i][0] in ONE_BLOCK_MAX or left[i][0] == INVALID:
+            next_item = right[i]
+        elif 0.5 > random.random():
+            next_item = left[i]
+        else:
+            next_item = right[i]
+        result.append(next_item)
+        
+    if len(left) != len(right):
+        last = left[-1:] if len(left) > len(right) else right[-1:]
+        if last[0] in ONE_BLOCK_MAX or 0.5 > random.random():
+            result += last
+            
+    return result
+    
+def s_remove(sched, name):
+    result = []
+    for item in sched:
+        if item[0] != name:
+            result.append(item)
+        else:
+            result.append((INVALID, 0))
+    return result
     
     
 def main():
-    for x in range(1, 11):
-        ind = individual()
-        total = 0
-        for item in ind:
-            total += item[1]
-        print "\n", x, len(ind), total, ind
+    pop = population(100)
+    for i in range(1, 10):
+        print "gen", i
+        pop = evolve(pop)
+    print "\n\nresults\n"
+    for item in pop[:10]:
+        print fitness(item), item
         
 main()
