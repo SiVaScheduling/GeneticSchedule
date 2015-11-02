@@ -5,9 +5,9 @@ INVALID = "X"
 # Parameters for schedule generation
 TYPES = (
     ["C", "C", "C", "C", "C", "B", "L", "S"],
-    ["C", "C", "C", "C", "B", "L", "S"],
-    ["C", "C", "C", "C", "C", "B", "L"],
-    ["C", "C", "C", "C", "B", "L"],
+    #["C", "C", "C", "C", "B", "L", "S"],
+    #["C", "C", "C", "C", "C", "B", "L"],
+    #["C", "C", "C", "C", "B", "L"],
 )
 TOTAL_MINI_BLOCKS = 78 # from 8:30 am to 3:00 pm
 MIN_CLASS_LENGTH = 6
@@ -22,6 +22,11 @@ ONE_BLOCK_MAX = ("B", "L", "S")
 # Parameters for fitness calculation
 IDEAL_LUNCH_TIME = 45 # 12:15 pm
 IDEAL_BREAK_TIME = 18 # 10:00 am
+IDEAL_STUDENT_LIFE_TIME = 18 # 10:00 am
+
+IDEAL_LUNCH_LENGTH = 12 # 60 mins
+IDEAL_CLASS_LENGTH = 12 # ask colton
+
 
 def individual():
     shuffled_blocks = TYPES[random.randint(0, len(TYPES) - 1)]
@@ -69,8 +74,16 @@ def individual():
 # lower is better, apparently
 def fitness(schedule):
     fitness = 0
+    
     fitness += abs(IDEAL_LUNCH_TIME - s_index_of(schedule, "L"))
     fitness += abs(IDEAL_BREAK_TIME - s_index_of(schedule, "B"))
+    
+    sl_index = s_index_of(schedule, "S")
+    if sl_index != -1:
+        fitness += abs(IDEAL_STUDENT_LIFE_TIME - sl_index)
+        
+    fitness += abs(IDEAL_LUNCH_LENGTH - s_value_of(schedule, "L"))
+    
     return fitness
     
 def s_index_of(schedule, name):
@@ -78,20 +91,28 @@ def s_index_of(schedule, name):
     for block in schedule:
         if block[0] == name:
             return index
-        try:
-            index += block[1]
-        except:
-            print schedule
-            print block
-            raise Exception
+        index += block[1]
     return -1
+
+def s_value_of(schedule, name):
+    for block in schedule:
+        if block[0] == name:
+            return block[1]
+    return -1
+
+def s_values(schedule, name):
+    result = []
+    for block in schedule:
+        if block[0] == name:
+            result.append(block[1])
+    return result
         
         
 def population(count):
     return [individual() for x in range(0, count)]
         
         
-def evolve(population, pct_retain=0.2, prob_random_select=0.05, prob_mutate=0.01):
+def evolve(population, pct_retain=0.2, prob_random_select=0.07, prob_mutate=0.02):
     graded = [(fitness(x), x) for x in population]
     graded = [x[1] for x in sorted(graded)]
     
@@ -124,15 +145,23 @@ def mate(left, right):
     
     result = []
     for i in range(0, min(len(left), len(right))):
-        if left[i][0] in ONE_BLOCK_MAX or right[i][0] == INVALID:
-            next_item = left[i]
-        elif right[i][0] in ONE_BLOCK_MAX or left[i][0] == INVALID:
-            next_item = right[i]
-        elif 0.5 > random.random():
-            next_item = left[i]
+        if right[i][0] in ONE_BLOCK_MAX and left[i][0] in ONE_BLOCK_MAX:
+            # Both blocks need to be in child
+            result.append(left[i])
+            result.append(right[i])
         else:
-            next_item = right[i]
-        result.append(next_item)
+            # One or neither of blocks need to be in child
+            if left[i][0] in ONE_BLOCK_MAX or right[i][0] == INVALID:
+                next_item = left[i]
+            elif right[i][0] in ONE_BLOCK_MAX or left[i][0] == INVALID:
+                next_item = right[i]
+            elif 0.5 > random.random():
+                next_item = left[i]
+            else:
+                next_item = right[i]
+
+            if next_item[0] != INVALID:
+                result.append(next_item)
         
     if len(left) != len(right):
         last = left[-1:] if len(left) > len(right) else right[-1:]
@@ -152,7 +181,7 @@ def s_remove(sched, name):
     
     
 def main():
-    pop = population(100)
+    pop = population(1000)
     for i in range(1, 10):
         print "gen", i
         pop = evolve(pop)
