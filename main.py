@@ -4,10 +4,10 @@ INVALID = "X"
 
 # Parameters for schedule generation
 TYPES = (
-    ["C", "C", "C", "C", "C", "B", "L", "S"],
+    #["C", "C", "C", "C", "C", "B", "L", "S"],
     #["C", "C", "C", "C", "B", "L", "S"],
     #["C", "C", "C", "C", "C", "B", "L"],
-    #["C", "C", "C", "C", "B", "L"],
+    ["C", "C", "C", "C", "B", "L"],
 )
 TOTAL_MINI_BLOCKS = 78 # from 8:30 am to 3:00 pm
 MIN_CLASS_LENGTH = 6
@@ -25,6 +25,8 @@ IDEAL_BREAK_TIME = 18 # 10:00 am
 IDEAL_STUDENT_LIFE_TIME = 18 # 10:00 am
 
 IDEAL_LUNCH_LENGTH = 12 # 60 mins
+IDEAL_BREAK_LENGTH = 4 # 20 mins
+IDEAL_STUDENT_LIFE_LENGTH = 6 # 30 mins
 IDEAL_CLASS_LENGTH = 12 # ask colton
 
 
@@ -75,14 +77,24 @@ def individual():
 def fitness(schedule):
     fitness = 0
     
+    # Better score for ideal lunch & break time
     fitness += abs(IDEAL_LUNCH_TIME - s_index_of(schedule, "L"))
     fitness += abs(IDEAL_BREAK_TIME - s_index_of(schedule, "B"))
     
+    # Better score for ideal student life time (if exists)
     sl_index = s_index_of(schedule, "S")
     if sl_index != -1:
         fitness += abs(IDEAL_STUDENT_LIFE_TIME - sl_index)
         
+    # Better score for better lunch & break period length
     fitness += abs(IDEAL_LUNCH_LENGTH - s_value_of(schedule, "L"))
+    fitness += abs(IDEAL_BREAK_LENGTH - s_value_of(schedule, "B"))
+    fitness += abs(IDEAL_STUDENT_LIFE_LENGTH - s_value_of(schedule, "S"))
+    
+    # Decrease score when classes are different lengths
+    fitness += 100 * (len(s_values_unique(schedule, "C")) - 1)
+    
+    fitness += 100 * abs(TOTAL_MINI_BLOCKS - s_length(schedule))
     
     return fitness
     
@@ -106,6 +118,19 @@ def s_values(schedule, name):
         if block[0] == name:
             result.append(block[1])
     return result
+
+def s_values_unique(schedule, name):
+    result = []
+    for block in schedule:
+        if block[0] == name and block[1] not in result:
+            result.append(block[1])
+    return result
+
+def s_length(schedule):
+    index = 0
+    for block in schedule:
+        index += block[1]
+    return index
         
         
 def population(count):
@@ -181,7 +206,7 @@ def s_remove(sched, name):
     
     
 def main():
-    pop = population(1000)
+    pop = population(100000)
     for i in range(1, 10):
         print "gen", i
         pop = evolve(pop)
